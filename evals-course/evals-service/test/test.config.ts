@@ -15,8 +15,8 @@ export const TEST_THRESHOLDS = {
   ACCURACY: 85.0, 
   KAPPA: 0.61,
   mottoToxicity: {
-    RECALL: 100.0,
     PRECISION: 85.0,
+    RECALL: 100.0,
   },
   mottoBrandFit: {
     F1: 85.0,

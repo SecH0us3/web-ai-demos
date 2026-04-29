@@ -15,7 +15,7 @@ This repo includes:
 ```mermaid
 graph TD
     UI[User Prompt constraints] --> TB[ThemeBuilder service]
-    TB --> Output["App output: motto, color palette)"]
+    TB --> Output["App output: motto, color palette"]
     Output --> RB[Rule-based evals: data format, contrast]
     Output --> LLM[LLM judge evals: brand fit, toxicity]
     RB --> R[eval result PASS/FAIL]
@@ -33,28 +33,64 @@ graph TD
 
 Running evaluations from the `evals-course` root:
 
-### 1. Testing the evaluators (= testing the evaluators themselves)
+### Testing the evaluators
 
-These scripts test the **evaluator functions themselves** and assess the correctness of the criteria and LLM scoring logic. You'd typically run these tests when you're developing the evaluators.
+These tests check the **evaluator functions themselves**.
+You'd typically run these tests while developing the evaluators to assess the correctness of the criteria and LLM scoring logic.
+
+#### Rule-based
 
 Run tests for rule-based evaluators:
 ```bash
 npm run test:rule-based-evals
 ```
 
-Run basic tests for LLM-as-a-judge evaluators (alignment% only):
+### Basic LLM judge
+
+Run basic tests for LLM judge evaluators (alignment% only):
+
+All tests:
 ```bash
-npm run test:llm-judge-basic-evals
+npm run test:llm-judge-evals-basic
 ```
 
-Run advanced tests for LLM-as-a-judge evaluators (alignment%, Cohen's Kappa, precision, recall):
+#### Basic judge no bootstrap
+
+```bash
+npm run test:llm-judge-evals-basic-no-bootstrap
+```
+
+#### Basic judge with bootstrap
+
+```bash
+npm run test:llm-judge-evals-basic-bootstrap
+```
+
+#### Basic judge self-consistency
+
+```bash
+npm run test:llm-judge-evals-basic-consistency
+```
+
+#### Basic judge final exam
+
+```bash
+npm run test:llm-judge-evals-basic-final-exam
+```
+
+### Advanced LLM judge
+
+Run advanced tests for LLM judge evaluators (alignment%, Cohen's Kappa, precision, recall):
+
+All tests:
 ```bash
 npm run test:llm-judge-evals
 ```
 
-### 2. Evaluating application outputs
+### Evaluating application outputs
 
-This executes the real `ThemeBuilder` application service against a dataset of prompts, using both static rules and our evaluators (rule-based and LLM judge) to grade the final AI-generated outputs.
+These tests evaluate the **application outputs** using the evaluators.
+They executes the real `ThemeBuilder` application service against a dataset of prompts, using both static rules and our evaluators (rule-based and LLM judge) to grade ThemeBuilder's AI-generated outputs.
 
 Run unit testing for the AI application:
 ```bash

@@ -68,7 +68,7 @@ function logTestStart(filePath: string) {
   console.log("========================================");
   console.log("Goal: Test that the LLM judge is aligned with human evaluations (alignment% only).\n");
   console.log("⚠️ WARNING: alignment% (accuracy) is a basic metric.");
-  console.log("It does not account for random chance or class imbalance, and cannot distinguish between false positives and false negatives.");
+  console.log("It does not account for random chance or class imbalance, and cannot distinguish between false positives and false negatives.\n");
   console.log(`Using dataset: ${filePath}`);
 }
 
