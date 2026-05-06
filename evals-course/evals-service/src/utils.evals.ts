@@ -4,7 +4,7 @@
  */
 
 import { AppOutputSchema } from "./schemas";
-import { EvalResult, EvalLabel, ColorPalette } from "./types";
+import { EvalResult, EvalLabel, ColorPalette, TestCaseResult } from "./types";
 
 export function evalDataFormat(appOutput: any): EvalResult {
   const result = AppOutputSchema.safeParse(appOutput);
@@ -15,7 +15,7 @@ export function evalDataFormat(appOutput: any): EvalResult {
     }).join(", ");
     return { label: EvalLabel.FAIL, rationale: errorMessages };
   }
-  return { label: EvalLabel.PASS, rationale: "Format is valid." };
+  return { label: EvalLabel.PASS, rationale: "Data format is correct." };
 }
 
 export function evalContrastRatio(colorPalette: ColorPalette, minContrastRatio: number): EvalResult {
