@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 dotenv.config({ quiet: true });
 import { evalContrastRatio } from '../src/eval.service';
 import { EvalLabel } from '../src/types';
-import { MIN_CONTRAST_RATIO } from '../src/app.config';
+import { CONTRAST_RATIO_MIN } from '../src/app.config';
 import { TEST_SAMPLE_COUNT_FAST_DEBUG } from './test.config';
 
 async function run() {
@@ -250,7 +250,7 @@ async function run() {
     let failed = 0;
 
     testCases.forEach((testCase) => {
-        const result = evalContrastRatio(testCase.appOutput.colorPalette as any, MIN_CONTRAST_RATIO);
+        const result = evalContrastRatio(testCase.appOutput.colorPalette as any, CONTRAST_RATIO_MIN);
         const actualEvalLabel = result.label;
         const expectedEvalLabel = testCase.expected.contrast;
         const isSuccess = actualEvalLabel === expectedEvalLabel;

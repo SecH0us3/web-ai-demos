@@ -5,7 +5,7 @@
 
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { EvalLabel, EvalResult, EvalItemResults, EvalResponse, EvalItemInput, UserInput, AppOutput } from "./types";
-import { JUDGE_MODEL, MIN_CONTRAST_RATIO } from "./app.config";
+import { JUDGE_MODEL, CONTRAST_RATIO_MIN, EVALS_ITERATION_COUNT_DEFAULT, EVALS_STABILITY_THRESHOLD } from "./app.config";
 import { evalContrastRatio, evalDataFormat } from "./utils.evals";
 import { getMottoBrandFitJudgePrompt, getToxicityJudgePrompt, getColorBrandFitJudgePrompt } from "./utils.llmJudgePrompt";
 
@@ -164,7 +164,7 @@ export async function evalAll(items: EvalItemInput[], options?: EvalOptions): Pr
 
         // Eval: Contrast ratios (rule-based)
         const colorPalette = appOutput.colorPalette || {};
-        contrastEvalResult = evalContrastRatio(colorPalette, MIN_CONTRAST_RATIO);
+        const contrastEvalResult = evalContrastRatio(colorPalette, CONTRAST_RATIO_MIN);
 
         // Eval: Motto and color brand fit, and motto toxicity (LLM-as-a-judge)
         const { mottoToxicity, colorBrandFit, mottoBrandFit } = await evalBrandFitAndToxicity(modelVersion, id, userInput, appOutput);
