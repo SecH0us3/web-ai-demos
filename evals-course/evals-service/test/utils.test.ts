@@ -5,7 +5,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { EvalLabel, Mismatch, FinalStatsAcrossMetrics, FinalStatsPerMetric, FinalAlignmentResults, EvalItemInput, RawConsistencyResults, ConsistencyStatsPerItemMetric, ConsistencyVerdict, FinalConsistencyResults, BasicAlignmentResults, EVAL_CRITERIA, METRIC_TO_RESULT_KEY } from "../src/types";
+import { EvalLabel, Mismatch, FinalStatsAcrossMetrics, FinalStatsPerMetric, FinalAlignmentResults, TestCaseInput, RawConsistencyResults, ConsistencyStatsPerItemMetric, ConsistencyVerdict, FinalConsistencyResults, BasicAlignmentResults, EVAL_CRITERIA, METRIC_TO_RESULT_KEY } from "../src/types";
 import { TEST_THRESHOLDS as THRESHOLDS } from '../test/test.config';
 
 let animationInterval: NodeJS.Timeout | null = null;
@@ -81,11 +81,11 @@ export function loadDataset(filePath: string): any[] {
   }
 }
 
-export function extractItemsToEval(dataset: any[]): EvalItemInput[] {
-  return dataset.map((sample: EvalItemInput) => ({
+export function extractItemsToEval(dataset: any[]): TestCaseInput[] {
+  return dataset.map((sample: any) => ({
     id: sample.id,
     userInput: sample.userInput,
-    appOutput: sample.appOutput
+    appOutputs: sample.appOutputs || (sample.appOutput ? [sample.appOutput] : [])
   }));
 }
 
@@ -99,9 +99,9 @@ export function mapHumanLabelsById(dataset: any[]): Map<string, any> {
 
 // --- Alignment logic ---
 
-import { RawAlignmentResults, RawStatsPerMetric, EvalItemResults, EvalResult } from '../src/types';
+import { RawAlignmentResults, RawStatsPerMetric, TestCaseResult, MetricResult, EvalResult } from '../src/types';
 
-export function computeAlignmentStats(evalResults: EvalItemResults[], humanLabelsMap: Map<string, Record<'mottoBrandFit' | 'mottoToxicity' | 'colorBrandFit', EvalResult>>): RawAlignmentResults {
+export function computeAlignmentStats(evalResults: TestCaseResult[], humanLabelsMap: Map<string, Record<'mottoBrandFit' | 'mottoToxicity' | 'colorBrandFit', EvalResult>>): RawAlignmentResults {
   const stats: Record<'mottoBrandFit' | 'mottoToxicity' | 'colorBrandFit', RawStatsPerMetric> = {
     mottoBrandFit: { total: 0, aligned: 0, TP: 0, FP: 0, FN: 0, TN: 0, target: EvalLabel.FAIL },
     mottoToxicity: { total: 0, aligned: 0, TP: 0, FP: 0, FN: 0, TN: 0, target: EvalLabel.FAIL },
@@ -122,7 +122,7 @@ export function computeAlignmentStats(evalResults: EvalItemResults[], humanLabel
     for (const criterion of EVAL_CRITERIA) {
       const humanRes = humanLabels[criterion];
       const resultKey = METRIC_TO_RESULT_KEY[criterion];
-      const llmRes = llmResult[resultKey] as EvalResult;
+      const llmRes = llmResult[resultKey] as MetricResult;
 
       if (!humanRes || !llmRes) continue;
 
@@ -160,7 +160,7 @@ export function computeAlignmentStats(evalResults: EvalItemResults[], humanLabel
 }
 
 export function computeBasicAlignmentStats(
-  evalResults: EvalItemResults[],
+  evalResults: TestCaseResult[],
   humanLabelsMap: Map<string, Record<'mottoBrandFit' | 'mottoToxicity' | 'colorBrandFit', EvalResult>>
 ): BasicAlignmentResults {
   const mismatches: Mismatch[] = [];
@@ -177,7 +177,7 @@ export function computeBasicAlignmentStats(
     for (const criterion of EVAL_CRITERIA) {
       const humanEvalResult = humanLabelsForAllCriteria[criterion];
       const resultKey = METRIC_TO_RESULT_KEY[criterion];
-      const llmEvalResult = llmResult[resultKey] as EvalResult;
+      const llmEvalResult = llmResult[resultKey] as MetricResult;
 
       if (!humanEvalResult || !llmEvalResult) continue;
 

@@ -6,7 +6,21 @@
 // Classification label for an evaluation (PASS/FAIL is the judge's verdict)
 export enum EvalLabel {
     PASS = "PASS",
-    FAIL = "FAIL"
+    FAIL = "FAIL",
+    ERROR = "ERROR",
+    SKIPPED = "SKIPPED"
+}
+
+export enum ExpectedOutcome {
+    SUCCESS = "SUCCESS",
+    SAFETY_BLOCK = "SAFETY_BLOCK",
+    LOW_CONTEXT_ERROR = "LOW_CONTEXT_ERROR"
+}
+
+export interface TestCase {
+    id: string;
+    userInput: UserInput;
+    expected: ExpectedOutcome;
 }
 
 export interface BasicAlignmentResults {
@@ -18,7 +32,7 @@ export interface BasicAlignmentResults {
 
 export const EVAL_CRITERIA: ('mottoBrandFit' | 'mottoToxicity' | 'colorBrandFit')[] = ['mottoBrandFit', 'mottoToxicity', 'colorBrandFit'];
 
-export const METRIC_TO_RESULT_KEY: Record<'mottoBrandFit' | 'mottoToxicity' | 'colorBrandFit', keyof EvalItemResults> = {
+export const METRIC_TO_RESULT_KEY: Record<'mottoBrandFit' | 'mottoToxicity' | 'colorBrandFit', keyof TestCaseResult> = {
     mottoBrandFit: 'mottoBrandFit',
     mottoToxicity: 'mottoToxicity',
     colorBrandFit: 'colorBrandFit',
@@ -41,33 +55,65 @@ export interface ColorPalette {
 }
 
 export interface AppOutput {
-    motto: string;
-    colorPalette: ColorPalette;
+    success?: boolean;
+    motto?: string;
+    colorPalette?: ColorPalette;
+    errorCode?: string;
+    errorMessage?: string;
 }
 
-export interface EvalItemInput {
+export interface TestCaseInput {
     id: string;
     userInput: UserInput;
-    appOutput: AppOutput;
+    appOutputs: AppOutput[];
+    expectedOutcome?: ExpectedOutcome;
 }
 
 export interface EvalResult {
     label: EvalLabel;
     rationale?: string;
+    appOutput?: AppOutput;
 }
 
-export interface EvalItemResults {
+export interface MetricResult {
+    label: EvalLabel;
+    rationale?: string;
+    stabilityRate?: number;
+    evalResults?: EvalResult[];
+}
+
+export interface TestCaseResult {
     id: string;
-    dataFormat: EvalResult;
-    colorBrandFit: EvalResult;
-    contrast: EvalResult;
-    mottoToxicity: EvalResult;
-    mottoBrandFit: EvalResult;
+    userInput: UserInput;
+    appOutputs: AppOutput[];
+    expectedOutcome: ExpectedOutcome;
+    appGateResult: MetricResult;
+    dataFormat: MetricResult;
+    contrast: MetricResult;
+    colorBrandFit: MetricResult;
+    mottoBrandFit: MetricResult;
+    mottoToxicity: MetricResult;
+}
+
+export interface AppMetadata {
+    systemInstruction?: string;
+    promptTemplate?: string;
+    model: string;
+    temperature?: number;
+    thinkingLevel?: string;
+}
+
+export interface EvalOptions {
+    onProgress?: (index: number, total: number) => void;
+    iterations?: number;
+    appMetadata?: AppMetadata;
 }
 
 export interface EvalResponse {
-    results: EvalItemResults[];
-    modelVersion?: string;
+    results: TestCaseResult[];
+    modelVersion: string;
+    judgeVersion: string;
+    appMetadata?: AppMetadata;
 }
 
 export interface Mismatch {

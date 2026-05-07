@@ -7,24 +7,35 @@ import * as dotenv from 'dotenv';
 dotenv.config({ quiet: true });
 import * as fs from 'fs';
 import * as path from 'path';
-import { evalAll } from '../src/eval.service';
-import { EvalLabel } from '../src/types';
-import { themeBuilder } from '../../theme-builder/theme-builder';
+import { evalAll, loadedJudgeVersion } from '../src/eval.service';
+import { EvalLabel, TestCaseResult, EvalResponse, MetricResult, EvalResult, ExpectedOutcome, TestCase } from '../src/types';
+import { themeBuilder, THEME_BUILDER_SYSTEM_INSTRUCTION, THEME_BUILDER_PROMPT_TEMPLATE } from '../../theme-builder/theme-builder';
 import { TEST_SAMPLE_COUNT_FAST_DEBUG } from './test.config';
+import { JUDGE_MODEL, APP_MODEL, EVALS_ITERATION_COUNT_DEFAULT } from '../src/app.config';
+import { generateHtmlReport } from '../src/utils.reporter';
 
+let judgeAnimationInterval: NodeJS.Timeout | null = null;
+let judgeAnimationFrame = 0;
+const judgeFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
-// Enum for expected test outcomes
-enum ExpectedOutcome {
-   SUCCESS = "SUCCESS",
-   SAFETY_BLOCK = "SAFETY_BLOCK",
-   LOW_CONTEXT_ERROR = "LOW_CONTEXT_ERROR"
+function startJudgeSpinner(sampleId: string) {
+   if (!judgeAnimationInterval) {
+      judgeAnimationFrame = 0;
+      judgeAnimationInterval = setInterval(() => {
+         const frame = judgeFrames[judgeAnimationFrame % judgeFrames.length];
+         judgeAnimationFrame++;
+         process.stdout.write(`\r${frame} [${sampleId}] LLM judge is working... ⚖️🧠 `);
+      }, 100);
+   }
 }
 
-// Boilerplate interface for testCase (adjust if needed)
-interface TestCase {
-   id: string;
-   userInput: any;
-   expected: ExpectedOutcome;
+function stopJudgeSpinner() {
+   if (judgeAnimationInterval) {
+      clearInterval(judgeAnimationInterval);
+      judgeAnimationInterval = null;
+      // Clear the line using ANSI code
+      process.stdout.write('\r\x1b[K');
+   }
 }
 
 async function runUnitTests() {
@@ -43,126 +54,144 @@ async function runUnitTests() {
    }
 
    console.log("\n================================");
-
    console.log("TEST: extended unit tests");
    console.log("================================");
    console.log("Goal: evaluate ThemeBuilder output against static rules and evals (rule-based + LLM judge).\n");
    console.log(`Using dataset: ${datasetPath}`);
-   console.log(`Total samples: ${dataset.length}\n`);
+   console.log(`Total test cases: ${dataset.length}\n`);
 
    let passCount = 0;
    let failCount = 0;
+   let errorCount = 0;
+   const allEvalResults: TestCaseResult[] = [];
 
    for (const testCase of dataset) {
       console.log(`\n• [${testCase.id}] ${testCase.userInput.companyName}`);
       let testCasePassed = true;
 
       try {
-         // Call real ThemeBuilder LLM
-         const appOutput = await themeBuilder(testCase.userInput);
-
-         if (testCase.expected === ExpectedOutcome.LOW_CONTEXT_ERROR) {
-            if (!appOutput.success && appOutput.errorCode === "LOW_CONTEXT_ERROR") {
-               console.log("  Result: \x1b[32mPASS\x1b[0m (static rule: successfully blocked low-context input (LOW_CONTEXT_ERROR).)");
-            } else {
-               console.log("  Result: \x1b[31mFAIL\x1b[0m (builder failed to block low-context input.)");
-               testCasePassed = false;
-            }
-         } else if (testCase.expected === ExpectedOutcome.SAFETY_BLOCK) {
-            // Verify if it was blocked
-            if (!appOutput.success && appOutput.errorCode === "SAFETY_BLOCK") {
-               console.log("  Result: \x1b[32mPASS\x1b[0m (static rule: successfully blocked adversarial input (SAFETY_BLOCK).)");
-            } else {
-               console.log("  Result: NOT BLOCKED IN FRONT (builder did not block it). Let's call the judge to check toxicity.");
-               // Check if toxic anyway
-               const evalResponse = await evalAll([{ id: testCase.id, userInput: testCase.userInput, appOutput: appOutput as any }]);
-               const res = evalResponse.results[0];
-               if (res.mottoToxicity.label === EvalLabel.FAIL) {
-                  console.log(`  Judge check: \x1b[32mPASS\x1b[0m (judge successfully caught the toxicity.)`);
-               } else {
-                  console.log(`  Judge check: \x1b[31mFAIL\x1b[0m (the judge missed the toxicity.)`);
-                  testCasePassed = false;
-               }
-            }
-         } else {
-            // SUCCESS Case: Verify if it's a GOOD brand fit
-            if (!appOutput.success) {
-               console.log(`  Result: \x1b[31mFAIL\x1b[0m (Unexpectedly blocked valid inputs. Error: ${appOutput.errorCode})`);
-               testCasePassed = false;
-            } else {
-               console.log("  Static check: \x1b[32mPASS\x1b[0m. Now running evals...");
-               const evalResponse = await evalAll([{ id: testCase.id, userInput: testCase.userInput, appOutput: appOutput as any }]);
-               const res = evalResponse.results[0];
-
-               // Contrast Ratio Check (Rule-based eval)
-               if (res.contrast.label === EvalLabel.PASS) {
-                  console.log("  contrast: \x1b[32mPASS\x1b[0m");
-               } else {
-                  console.log("  contrast: \x1b[31mFAIL\x1b[0m");
-                  console.log(`  Rationale: ${res.contrast.rationale}`);
-                  testCasePassed = false;
-               }
-
-               // Data format check (Rule-based eval)
-               if (res.dataFormat.label === EvalLabel.PASS) {
-                  console.log("  dataFormat: \x1b[32mPASS\x1b[0m");
-               } else {
-                  console.log("  dataFormat: \x1b[31mFAIL\x1b[0m");
-                  console.log(`  Rationale: ${res.dataFormat.rationale}`);
-                  testCasePassed = false;
-               }
-
-               // Motto Brand Fit Check (LLM eval)
-               if (res.mottoBrandFit.label === EvalLabel.PASS) {
-                  console.log("  mottoBrandFit: \x1b[32mPASS\x1b[0m");
-               } else {
-                  console.log("  mottoBrandFit: \x1b[31mFAIL\x1b[0m");
-                  console.log(`  Rationale: ${res.mottoBrandFit.rationale}`);
-                  testCasePassed = false;
-               }
-
-               // Color Palette Brand Fit Check (LLM eval)
-               if (res.colorBrandFit.label === EvalLabel.PASS) {
-                  console.log("  colorBrandFit: \x1b[32mPASS\x1b[0m");
-               } else {
-                  console.log("  colorBrandFit: \x1b[31mFAIL\x1b[0m");
-                  console.log(`  Rationale: ${res.colorBrandFit.rationale}`);
-                  testCasePassed = false;
-               }
-
-               // Toxicity Check, expect PASS for non-toxic (LLM eval)
-               if (res.mottoToxicity.label === EvalLabel.PASS) {
-                  console.log("  mottoToxicity: \x1b[32mPASS\x1b[0m");
-               } else {
-                  console.log("  mottoToxicity: \x1b[31mFAIL\x1b[0m");
-                  console.log(`  Rationale: ${res.mottoToxicity.rationale}`);
-                  testCasePassed = false;
-               }
-            }
+         // Call real ThemeBuilder LLM N times to generate candidate outputs
+         const appOutputs: any[] = [];
+         for (let i = 0; i < EVALS_ITERATION_COUNT_DEFAULT; i++) {
+            const appOutput = await themeBuilder(testCase.userInput);
+            appOutputs.push(appOutput);
          }
+
+         // Run dynamic evaluation using evalAll
+         startJudgeSpinner(testCase.id);
+         const evalResponse = await evalAll(
+            [{ id: testCase.id, userInput: testCase.userInput, appOutputs, expectedOutcome: testCase.expected }],
+            { appMetadata: { model: JUDGE_MODEL, temperature: 0, thinkingLevel: "HIGH", systemInstruction: "You are a senior brand strategist..." } }
+         );
+         stopJudgeSpinner();
+
+         const res = evalResponse.results[0];
+         allEvalResults.push(res);
+
+         // Print results per metric
+         // 1. App gate (now fully dynamic appGateResult!)
+         if (res.appGateResult.label === EvalLabel.PASS) {
+            const rationaleSuffix = res.appGateResult.rationale && res.appGateResult.rationale !== 'NONE'
+               ? ` (${res.appGateResult.rationale})`
+               : '';
+            console.log(`  App Gate: \x1b[32mPASS\x1b[0m${rationaleSuffix}`);
+         } else if (res.appGateResult.label === EvalLabel.ERROR) {
+            console.log(`  App Gate: \x1b[33mERROR\x1b[0m (Rationale: ${res.appGateResult.rationale})`);
+            testCasePassed = false;
+         } else {
+            console.log(`  App Gate: \x1b[31mFAIL\x1b[0m (Rationale: ${res.appGateResult.rationale})`);
+            testCasePassed = false;
+         }
+
+         // Helper function to log outcome
+         const logMetric = (name: string, result: MetricResult, showDetails = false) => {
+            const label = result.label;
+            const details = showDetails && result.stabilityRate !== undefined
+               ? ` (Stability: ${(result.stabilityRate * 100).toFixed(0)}% | Iterations: [${result.evalResults?.map(it => (it as any).label).join(', ')}])`
+               : '';
+            if (label === EvalLabel.PASS) {
+               console.log(`  ${name}: \x1b[32mPASS\x1b[0m${details}`);
+            } else if (label === EvalLabel.SKIPPED) {
+               console.log(`  ${name}: \x1b[90mSKIPPED\x1b[0m`);
+            } else if (label === EvalLabel.ERROR) {
+               console.log(`  ${name}: \x1b[33mERROR\x1b[0m${details}\n  Rationale: ${result.rationale}`);
+               testCasePassed = false;
+            } else {
+               console.log(`  ${name}: \x1b[31mFAIL\x1b[0m${details}\n  Rationale: ${result.rationale}`);
+               testCasePassed = false;
+            }
+         };
+
+         logMetric("Data Format", res.dataFormat);
+         logMetric("Contrast Ratio", res.contrast);
+         logMetric("Motto Brand Fit", res.mottoBrandFit, true);
+         logMetric("Color Brand Fit", res.colorBrandFit, true);
+         logMetric("Motto Toxicity", res.mottoToxicity, true);
 
       } catch (e: any) {
          console.error(`  Result: \x1b[31mCRASHED\x1b[0m (${e.message})`);
          testCasePassed = false;
+         allEvalResults.push({
+            id: testCase.id,
+            userInput: testCase.userInput,
+            expectedOutcome: testCase.expected,
+            appOutputs: [],
+            appGateResult: { label: EvalLabel.FAIL, rationale: `Runner crashed: ${e.message}` },
+            dataFormat: { label: EvalLabel.FAIL, rationale: `Crashed during execution: ${e.message}`, stabilityRate: 0, evalResults: [] },
+            colorBrandFit: { label: EvalLabel.FAIL, rationale: "Crashed", stabilityRate: 0, evalResults: [] },
+            contrast: { label: EvalLabel.FAIL, rationale: "Crashed", stabilityRate: 0, evalResults: [] },
+            mottoToxicity: { label: EvalLabel.FAIL, rationale: "Crashed", stabilityRate: 0, evalResults: [] },
+            mottoBrandFit: { label: EvalLabel.FAIL, rationale: "Crashed", stabilityRate: 0, evalResults: [] }
+         });
       }
 
-      if (testCasePassed) {
-         passCount++;
-      } else {
+      const lastRes = allEvalResults[allEvalResults.length - 1];
+      const resLabels = lastRes ? [lastRes.appGateResult?.label, lastRes.contrast?.label, lastRes.dataFormat?.label, lastRes.mottoBrandFit?.label, lastRes.colorBrandFit?.label, lastRes.mottoToxicity?.label] : [];
+
+      if (resLabels.includes(EvalLabel.ERROR)) {
+         errorCount++;
+      } else if (resLabels.includes(EvalLabel.FAIL) || !testCasePassed) {
          failCount++;
+      } else {
+         passCount++;
       }
    }
 
    const passResults = `\x1b[32m${passCount} PASS\x1b[0m`;
-   const failResults = failCount > 0
-      ? `\x1b[31m${failCount} FAIL\x1b[0m`
-      : `${failCount} FAIL`;
+   const failResults = failCount > 0 ? `\x1b[31m${failCount} FAIL\x1b[0m` : `${failCount} FAIL`;
+   const errorResults = errorCount > 0 ? `\x1b[33m${errorCount} ERROR\x1b[0m` : `${errorCount} ERROR`;
 
    console.log("\n================================");
    console.log("TEST DONE");
    console.log("📊 RESULTS:");
-   console.log(`✅ ${passResults}, ❌ ${failResults}`);
+   console.log(`✅ ${passResults}, ❌ ${failResults}, ⚠️ ${errorResults}`);
    console.log("================================");
+
+   // Generate Final HTML Report
+   console.log("\nGenerating HTML evaluation report...");
+   const reportDir = path.join(__dirname, '../reports');
+
+   const systemInstructionInfo = THEME_BUILDER_SYSTEM_INSTRUCTION;
+   const promptTemplateInfo = THEME_BUILDER_PROMPT_TEMPLATE;
+
+   const evalResponseForReport: EvalResponse = {
+      results: allEvalResults,
+      modelVersion: process.env.JUDGE_MODEL || JUDGE_MODEL,
+      judgeVersion: loadedJudgeVersion,
+      appMetadata: {
+         model: process.env.AI_MODEL || APP_MODEL,
+         systemInstruction: systemInstructionInfo,
+         promptTemplate: promptTemplateInfo
+      }
+   };
+
+   try {
+      const reportPath = generateHtmlReport(evalResponseForReport, reportDir);
+      console.log(`📊 Evals HTML Report generated at: ${reportPath}`);
+      console.log(`🌐 Multi-run dashboard index updated at: ${path.join(reportDir, 'index.html')}`);
+   } catch (reportError: any) {
+      console.error(`❌ Failed to generate HTML report: ${reportError.message}`);
+   }
 }
 
 runUnitTests().catch(console.error);
