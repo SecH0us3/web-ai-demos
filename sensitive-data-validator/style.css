@@ -183,6 +183,8 @@ h1 {
 
 .example-cards {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 10px;
   margin-top: 20px;
 }
@@ -481,6 +483,33 @@ textarea::placeholder {
 .chat-area::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 3px;
+}
+
+/* ── Detection List (modal) ── */
+.detection-list {
+  margin: 16px 0;
+}
+
+.detection-list h4 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.detection-list ul {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+}
+
+.detection-list li {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.6;
 }
 
 /* ── Responsive ── */

@@ -1,14 +1,44 @@
 /**
- * Chat Sensitive Data Validator
- * Uses Chrome's built-in Prompt API (Gemini Nano) to detect credit card numbers
- * in chat messages before "sending" them.
+ * Sensitive Data Validator
+ * Uses Chrome's built-in Prompt API (Gemini Nano) to detect sensitive
+ * information in messages before "sending" them to support.
  */
 
-const SYSTEM_PROMPT = `You are a sensitive data detector. Your ONLY job is to check if a message contains a credit card number.
-Reply with exactly one word: YES or NO.
-YES = the message contains something that looks like a credit card number (typically 13-19 digits, possibly separated by spaces or dashes).
-NO = the message does not contain a credit card number.
-Do not explain. Reply with only YES or NO.`;
+const SYSTEM_PROMPT = `You are a sensitive data detector for a customer support chat.
+Your job is to check if a message contains ANY of these types of sensitive information:
+
+1. CREDIT_CARD — credit/debit card numbers (13-19 digits)
+2. PASSWORD — passwords, PINs, security codes, passphrases (e.g. "my password is ...", "PIN: 1234")
+3. SSN — Social Security Numbers or national ID numbers (e.g. 123-45-6789)
+4. API_KEY — API keys, access tokens, secret keys (long alphanumeric strings, bearer tokens)
+5. PRIVATE_KEY — private keys, SSH keys, PEM certificates
+6. BANK_ACCOUNT — bank account numbers, routing numbers
+7. PASSPORT — passport numbers
+8. PHONE — phone numbers with country codes
+9. EMAIL_WITH_PASSWORD — email + password combos
+
+Reply with EXACTLY this format:
+SAFE — if no sensitive data found
+or
+FOUND: TYPE — if sensitive data found (use the type name from the list above)
+
+Examples:
+- "Can you help me reset my account?" → SAFE
+- "My password is hunter2" → FOUND: PASSWORD
+- "Card 4532 0150 1234 5678 exp 12/26" → FOUND: CREDIT_CARD
+- "Here is my token: sk-abc123xyz456" → FOUND: API_KEY`;
+
+const SENSITIVITY_LABELS = {
+  CREDIT_CARD: { icon: "💳", label: "Credit/debit card number" },
+  PASSWORD: { icon: "🔑", label: "Password or PIN" },
+  SSN: { icon: "🆔", label: "Social Security / National ID number" },
+  API_KEY: { icon: "🔐", label: "API key or access token" },
+  PRIVATE_KEY: { icon: "🗝️", label: "Private key or certificate" },
+  BANK_ACCOUNT: { icon: "🏦", label: "Bank account number" },
+  PASSPORT: { icon: "🛂", label: "Passport number" },
+  PHONE: { icon: "📱", label: "Phone number" },
+  EMAIL_WITH_PASSWORD: { icon: "📧", label: "Email + password combination" },
+};
 
 (async () => {
   const chatArea = document.getElementById("chat-area");
@@ -61,10 +91,10 @@ Do not explain. Reply with only YES or NO.`;
     }
   };
 
-  const addMessage = (text, className, icon = "") => {
+  const addMessage = (html, className) => {
     const div = document.createElement("div");
     div.className = `msg ${className}`;
-    div.innerHTML = icon ? `<span class="msg-icon">${icon}</span>${text}` : text;
+    div.innerHTML = html;
     chatArea.appendChild(div);
     chatArea.scrollTop = chatArea.scrollHeight;
     return div;
@@ -73,11 +103,33 @@ Do not explain. Reply with only YES or NO.`;
   const setProcessing = (active) => {
     sendBtn.disabled = active;
     input.disabled = active;
-    if (active) {
-      statusText.textContent = "Analyzing message with local AI…";
-    } else {
-      statusText.textContent = "";
+    statusText.textContent = active ? "Analyzing message with local AI…" : "";
+  };
+
+  const parseAiResponse = (raw) => {
+    const text = raw.trim().toUpperCase();
+    if (text.startsWith("SAFE") || text.startsWith("NO")) {
+      return { safe: true };
     }
+    // Try to extract type: "FOUND: PASSWORD" or just "PASSWORD"
+    const match = text.match(/FOUND:\s*(\w+)/);
+    if (match) {
+      const type = match[1];
+      return { safe: false, type };
+    }
+    // Fallback — check if the response contains any known type name
+    for (const key of Object.keys(SENSITIVITY_LABELS)) {
+      if (text.includes(key)) {
+        return { safe: false, type: key };
+      }
+    }
+    // If response contains YES, treat as blocked (unknown type)
+    if (text.startsWith("YES")) {
+      return { safe: false, type: null };
+    }
+    // Default to safe if we can't parse
+    console.warn("Unparseable AI response, defaulting to SAFE:", raw);
+    return { safe: true };
   };
 
   // ── Handle message submission ──
@@ -90,44 +142,39 @@ Do not explain. Reply with only YES or NO.`;
     input.value = "";
     input.style.height = "auto";
 
-    // Show analyzing indicator
     const analyzingMsg = addMessage(
-      '<span class="spinner"></span>Analyzing for sensitive data…',
+      '<span class="spinner"></span>Scanning for sensitive data…',
       "msg-system msg-analyzing"
     );
 
     setProcessing(true);
 
     try {
-      const prompt = `Does the following message contain a credit card number? Reply YES or NO only.\n\nMessage: "${text}"`;
+      const prompt = `Check this support chat message for sensitive data. Reply SAFE or FOUND: TYPE.\n\nMessage: "${text}"`;
       const response = await session.prompt(prompt);
-      const answer = response.trim().toUpperCase();
+      console.log("AI response:", response);
 
-      console.log("AI response:", response, "→ parsed:", answer);
-
-      // Remove the analyzing bubble
       analyzingMsg.remove();
+      const result = parseAiResponse(response);
 
-      if (answer.startsWith("YES")) {
+      if (result.safe) {
         addMessage(
-          "You included sensitive information (credit card number detected). The message was <strong>not sent</strong>.",
-          "msg-system msg-blocked",
-          "🚫"
+          '<span class="msg-icon">✅</span>Message sent successfully. Awaiting support response.',
+          "msg-system msg-safe"
         );
       } else {
+        const info = SENSITIVITY_LABELS[result.type] || { icon: "⚠️", label: "Sensitive information" };
         addMessage(
-          "Message sent. Awaiting response.",
-          "msg-system msg-safe",
-          "✅"
+          `<span class="msg-icon">${info.icon}</span><strong>Blocked:</strong> ${info.label} detected. Your message was <strong>not sent</strong> to protect your privacy.`,
+          "msg-system msg-blocked"
         );
       }
     } catch (err) {
       console.error("AI prompt error:", err);
       analyzingMsg.remove();
       addMessage(
-        `Error analyzing message: ${err.message}`,
-        "msg-system msg-blocked",
-        "⚠️"
+        `<span class="msg-icon">⚠️</span>Error analyzing message: ${err.message}`,
+        "msg-system msg-blocked"
       );
     } finally {
       setProcessing(false);
@@ -148,7 +195,6 @@ Do not explain. Reply with only YES or NO.`;
     }
   });
 
-  // Auto-grow textarea
   input.addEventListener("input", () => {
     input.style.height = "auto";
     input.style.height = Math.min(input.scrollHeight, 120) + "px";
