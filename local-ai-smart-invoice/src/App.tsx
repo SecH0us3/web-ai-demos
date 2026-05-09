@@ -130,7 +130,7 @@ export default function App() {
 
 OCR TEXT:
 ---
-${text.substring(0, 2500)}
+${text.substring(0, 8000)}
 ---
 
 Return a JSON object with exactly these keys:
@@ -144,9 +144,29 @@ Return a JSON object with exactly these keys:
 - "invoiceNumber": invoice number
 - "issueDate": issue date
 - "dueDate": due/payment date
-- "items": array of {"description","quantity","unitPrice","vatRate","totalAmount"}
+- "items": array of objects, one for EACH AND EVERY line item found on the invoice.
+  Each object MUST have exactly: {"description" (string), "quantity" (number), "unitPrice" (number), "vatRate" (number), "totalAmount" (number)}
 
-Use "" for missing string fields, 0 for missing numbers. JSON only, no text.`;
+CRITICAL: You MUST extract ALL items listed on the invoice. Do not skip any line items. Do not hallucinate.
+
+Use "" for missing string fields, 0 for missing numbers. JSON only, no text.
+Example format:
+{
+  "senderCompany": "Example Corp",
+  "senderVat": "123456",
+  "iban": "GB123456",
+  "bic": "EXABIC",
+  "receiverCompany": "Client Inc",
+  "receiverAddress": "123 Main St",
+  "receiverVat": "654321",
+  "invoiceNumber": "INV-100",
+  "issueDate": "2023-01-01",
+  "dueDate": "2023-01-31",
+  "items": [
+    {"description": "Web Design", "quantity": 1, "unitPrice": 1000, "vatRate": 20, "totalAmount": 1200},
+    {"description": "Hosting", "quantity": 12, "unitPrice": 50, "vatRate": 20, "totalAmount": 720}
+  ]
+}`;
 
       let aiResponseText = '';
       let session;
