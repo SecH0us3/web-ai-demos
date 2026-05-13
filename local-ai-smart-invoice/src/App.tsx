@@ -46,7 +46,7 @@ const emptyFormData: InvoiceFormData = {
   items: [],
 };
 
-const generateId = () => Math.random().toString(36).substring(2, 9);
+const generateId = () => self.crypto.randomUUID();
 
 export default function App() {
   const [formData, setFormData] = useState<InvoiceFormData>(emptyFormData);
