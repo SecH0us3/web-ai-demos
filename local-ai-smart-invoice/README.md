@@ -33,13 +33,6 @@ No API keys. No server. No data leaves your machine.
 - **Chrome 148+** with [Prompt API](https://developer.chrome.com/docs/ai/prompt-api) enabled
 - Node.js (for building)
 
-### Enable Chrome Prompt API
-
-1. Go to `chrome://flags/#optimization-guide-on-device-model` → **Enabled BypassPerfRequirement**
-2. Go to `chrome://flags/#prompt-api-for-gemini-nano` → **Enabled**
-3. Relaunch Chrome
-4. Go to `chrome://components` → find **Optimization Guide On Device Model** → **Check for update**
-
 ## Run Locally
 
 ```bash
