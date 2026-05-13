@@ -122,7 +122,7 @@ export default function App() {
 
       setOcrStatus({ step: 'ai', message: 'Parsing data with Chrome Local AI...' });
 
-      // Keep the system prompt SHORT — Gemini Nano has ~4096 token context
+      // Keep the system prompt SHORT
       const SYSTEM_PROMPT = 'You extract invoice data from OCR text. Reply with ONLY valid JSON, nothing else.';
 
       // Explicit, structured prompt — tell the model exactly what to look for
