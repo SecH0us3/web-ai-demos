@@ -1,5 +1,4 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import Tesseract from 'tesseract.js';
 import { Upload, FileText, Loader2, Plus, Trash2, AlertCircle, Bot, Scan, Info, CheckCircle2 } from 'lucide-react';
 
 // Helper: use the top-level LanguageModel (Chrome 138+)
@@ -101,36 +100,22 @@ export default function App() {
     }
 
     try {
-      // Step 1: Local OCR
-      setOcrStatus({ step: 'ocr', message: 'Running local OCR (Tesseract.js)...' });
-      const { data: { text } } = await Tesseract.recognize(file, 'eng+deu+fra');
-      
-      if (!text || text.trim() === '') {
-        throw new Error('Could not extract text from the image.');
-      }
-
-      console.log('=== OCR TEXT START ===');
-      console.log(text);
-      console.log('=== OCR TEXT END ===');
-
-      // Step 2: AI Parsing
       const lm = getLanguageModelAPI();
       if (aiStatus === 'unavailable' || !lm) {
         throw new Error('Chrome Local AI is not available. Click the info icon to learn how to enable it.');
       }
 
-      setOcrStatus({ step: 'ai', message: 'Parsing data with Chrome Local AI...' });
+      setOcrStatus({ step: 'ai', message: 'Analyzing image with Chrome Local AI...' });
 
       // Keep the system prompt SHORT
-      const SYSTEM_PROMPT = 'You extract invoice data from OCR text. Reply with ONLY valid JSON, nothing else.';
+      const SYSTEM_PROMPT = 'You are an expert invoice parser. Extract all data from scanned images into structured JSON. Reply with ONLY valid JSON, nothing else.';
 
-      // Explicit, structured prompt — tell the model exactly what to look for
-      const prompt = `Given this OCR text from a scanned invoice, extract data into JSON.
-
-OCR TEXT:
----
-${text.substring(0, 8000)}
----
+      // Explicit, structured multimodal prompt
+      const prompt = [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', value: `Given this scanned invoice image, extract data into JSON.
 
 Return a JSON object with exactly these keys:
 - "senderCompany": company that SENT/issued the invoice
@@ -148,31 +133,19 @@ Return a JSON object with exactly these keys:
 
 CRITICAL: You MUST extract ALL items listed on the invoice. Do not skip any line items. Do not hallucinate.
 
-Use "" for missing string fields, 0 for missing numbers. JSON only, no text.
-Example format:
-{
-  "senderCompany": "Example Corp",
-  "senderVat": "123456",
-  "iban": "GB123456",
-  "bic": "EXABIC",
-  "receiverCompany": "Client Inc",
-  "receiverAddress": "123 Main St",
-  "receiverVat": "654321",
-  "invoiceNumber": "INV-100",
-  "issueDate": "2023-01-01",
-  "dueDate": "2023-01-31",
-  "items": [
-    {"description": "Web Design", "quantity": 1, "unitPrice": 1000, "vatRate": 20, "totalAmount": 1200},
-    {"description": "Hosting", "quantity": 12, "unitPrice": 50, "vatRate": 20, "totalAmount": 720}
-  ]
-}`;
+Use "" for missing string fields, 0 for missing numbers. JSON only, no text.` },
+            { type: 'image', value: file }
+          ]
+        }
+      ];
 
       let aiResponseText = '';
       let session;
 
       try {
-        // Create session exactly like the working playground example
+        // Create session with multimodal support
         session = await lm.create({
+          expectedInputs: [{ type: 'image' }],
           initialPrompts: [
             { role: 'system', content: SYSTEM_PROMPT },
           ],
@@ -184,8 +157,8 @@ Example format:
           },
         });
 
-        // Plain prompt() call
-        aiResponseText = await session.prompt(prompt);
+        // Multimodal prompt() call
+        aiResponseText = await session.prompt(prompt as any);
       } finally {
         if (session) {
           session.destroy();
@@ -197,7 +170,7 @@ Example format:
       console.log('=== AI RAW RESPONSE END ===');
 
       // Save debug info for the UI panel
-      setDebugInfo({ ocrText: text, aiResponse: aiResponseText });
+      setDebugInfo({ ocrText: '[Multimodal Image Input]', aiResponse: aiResponseText });
 
       // The model may wrap JSON in ```json ... ``` — strip that
       let jsonStr = aiResponseText.trim();
