@@ -2,11 +2,10 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Tesseract from 'tesseract.js';
 import { Upload, FileText, Loader2, Plus, Trash2, AlertCircle, Bot, Scan, Info, CheckCircle2 } from 'lucide-react';
 
-// Helper: prefer the new top-level LanguageModel (Chrome 138+),
-// fall back to legacy window.ai.languageModel path.
+// Helper: use the top-level LanguageModel (Chrome 138+)
 const getLanguageModelAPI = (): any => {
   if (typeof LanguageModel !== 'undefined') return LanguageModel;
-  return (window as any).ai?.languageModel;
+  return undefined;
 };
 
 interface InvoiceItem {
