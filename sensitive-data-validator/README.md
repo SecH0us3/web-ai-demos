@@ -2,7 +2,7 @@
 
 Client-side chat guard that uses Chrome's **local Gemini Nano** to detect sensitive information in support chat messages before they're sent.
 
-🌐 **Live:** [chrome-ai.secmy.app](https://chrome-ai.secmy.app)
+🌐 **Live:** [chrome.dev/web-ai-demos/sensitive-data-validator/](https://chrome.dev/web-ai-demos/sensitive-data-validator/)
 
 ---
 
