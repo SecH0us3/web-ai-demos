@@ -1,6 +1,6 @@
 {
   "name": "Local AI Smart Invoice",
-  "description": "EU-compliant invoice form with intelligent auto-fill powered by local OCR and Chrome's Prompt API.",
+  "description": "Invoice form with intelligent auto-fill powered by local AI and Chrome's Prompt API.",
   "requestFramePermissions": [
     "language-model"
   ],

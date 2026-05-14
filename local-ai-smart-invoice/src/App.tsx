@@ -51,7 +51,6 @@ export default function App() {
   const [isHovering, setIsHovering] = useState(false);
   const [ocrStatus, setOcrStatus] = useState<{ step: 'idle' | 'ocr' | 'ai' | 'success' | 'error', message: string, progress?: number }>({ step: 'idle', message: '' });
   const [aiStatus, setAiStatus] = useState<'available' | 'downloading' | 'unavailable' | 'checking'>('checking');
-  const [showSetupInfo, setShowSetupInfo] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -288,7 +287,7 @@ Use "" for missing string fields, 0 for missing numbers. JSON only, no text.` },
       {/* Header Section */}
       <header className="flex items-center justify-between bg-white px-6 py-4 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.1)] border border-slate-200 shrink-0">
         <div className="flex items-center gap-2.5">
-          <h1 className="text-xl font-bold text-indigo-600 flex items-center gap-2">EU Invoice Engine</h1>
+          <h1 className="text-xl font-bold text-indigo-600 flex items-center gap-2">Invoice Engine</h1>
           {aiStatus === 'unavailable' ? (
             <span className="group relative flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 tracking-wide uppercase cursor-help">
               <AlertCircle size={10} /> AI Unavailable
@@ -309,13 +308,15 @@ Use "" for missing string fields, 0 for missing numbers. JSON only, no text.` },
           )}
         </div>
         <div className="flex gap-4">
-          <button 
-            onClick={() => setShowSetupInfo(!showSetupInfo)}
-            className="p-2 text-slate-400 hover:text-indigo-600 transition-colors bg-slate-50 rounded-lg border border-slate-200"
+          <a 
+            href="https://developer.chrome.com/docs/ai/prompt-api"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 text-slate-400 hover:text-indigo-600 transition-colors bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-center"
             title="Setup Instructions"
           >
             <Info size={18} />
-          </button>
+          </a>
           <button className="px-4 py-2 rounded-lg font-semibold border border-indigo-600 text-indigo-600 hover:bg-indigo-50 text-sm transition-colors shadow-sm">
             Save Draft
           </button>
@@ -324,51 +325,6 @@ Use "" for missing string fields, 0 for missing numbers. JSON only, no text.` },
           </button>
         </div>
       </header>
-
-      {/* Setup Instructions Overlay */}
-      {showSetupInfo && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200">
-            <div className="bg-indigo-600 p-6 text-white">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-bold flex items-center gap-2">
-                  <Bot /> Enable Chrome Prompt API
-                </h3>
-                <button onClick={() => setShowSetupInfo(false)} className="text-white/60 hover:text-white">✕</button>
-              </div>
-              <p className="mt-2 text-indigo-100 text-sm">Follow these steps to run models locally in your browser.</p>
-            </div>
-            <div className="p-6 space-y-4 text-sm text-slate-600">
-              <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg text-blue-800 text-xs mt-2">
-                <b>Important:</b> If you are viewing this in the AI Studio preview, you may need to <b>Open in New Tab</b> (using the button in the top right of the preview) because Chrome restricts AI APIs inside iFrames.
-              </div>
-              <div className="space-y-3">
-                <div className="flex gap-3">
-                  <div className="shrink-0 w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold text-xs">1</div>
-                  <p>Open <b>chrome://flags/#optimization-guide-on-device-model</b> and set it to <b>Enabled BypassPerfRequirement</b>.</p>
-                </div>
-                <div className="flex gap-3">
-                  <div className="shrink-0 w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold text-xs">2</div>
-                  <p>Open <b>chrome://flags/#prompt-api-for-gemini-nano</b> and set it to <b>Enabled</b>.</p>
-                </div>
-                <div className="flex gap-3">
-                  <div className="shrink-0 w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold text-xs">3</div>
-                  <p>Relaunch Chrome and go to <b>chrome://components</b>. Find "Optimization Guide On Device Model" and check for updates.</p>
-                </div>
-              </div>
-              <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-amber-800 text-xs text-center font-semibold">
-                This application runs entirely in your browser using Chrome's built-in AI.
-              </div>
-              <button 
-                onClick={() => setShowSetupInfo(false)}
-                className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors mt-2"
-              >
-                I Understand
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Main Layout Grid */}
       <main className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5 flex-1 min-h-0">

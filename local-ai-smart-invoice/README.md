@@ -1,7 +1,7 @@
-# 🧾 EU Invoice Engine — Local AI Smart Invoice
+# 🧾 Invoice Engine — Local AI Smart Invoice
 
 **Zero-cloud invoice parser** — drop a scanned invoice image, get structured data instantly.  
-OCR + Chrome's built-in Gemini Nano — everything runs locally in your browser.
+Multimodal vision via Chrome's built-in Gemini Nano — everything runs locally in your browser.
 
 🌐 **Live:** [chrome.dev/web-ai-demos/local-ai-smart-invoice/](https://chrome.dev/web-ai-demos/local-ai-smart-invoice/)
 
@@ -10,12 +10,11 @@ OCR + Chrome's built-in Gemini Nano — everything runs locally in your browser.
 ## How It Works
 
 ```
-Image → Tesseract.js (OCR) → Gemini Nano (AI parsing) → Structured Invoice Fields
+Image → Gemini Nano (Multimodal vision) → Structured Invoice Fields
 ```
 
-1. **OCR** — [Tesseract.js](https://github.com/naptha/tesseract.js) extracts raw text from the scanned image (supports EN/DE/FR)
-2. **AI Extraction** — Chrome's [Prompt API](https://developer.chrome.com/docs/ai/built-in) (Gemini Nano) parses the OCR text into structured invoice fields
-3. **Auto-fill** — sender, receiver, dates, line items, VAT — all populated automatically
+1. **AI Vision & Extraction** — Chrome's [Prompt API](https://developer.chrome.com/docs/ai/built-in) (Gemini Nano) uses multimodal capabilities to directly read the scanned image and parse it into structured invoice fields.
+2. **Auto-fill** — sender, receiver, dates, line items, VAT — all populated automatically
 
 No API keys. No server. No data leaves your machine.
 
@@ -37,41 +36,28 @@ No API keys. No server. No data leaves your machine.
 
 ```bash
 npm install
-npm run build
-simplehttpserver -https -path ./dist
-# Open https://0.0.0.0:8000/
-```
-
-> **Note:** The Prompt API requires HTTPS. Serving via `simplehttpserver -https` provides a self-signed cert — accept the browser warning on first visit.
-
-## Dev Mode
-
-```bash
 npm run dev
-# Opens on http://localhost:3000
-# Note: Prompt API may not work without HTTPS in dev mode
+# Opens on http://localhost:3000 (or 3001 if port is busy)
 ```
+
+> **Note:** Chrome treats `localhost` as a secure context, so the Prompt API works without HTTPS locally.
 
 ## Tech Stack
 
 - **React 19** + TypeScript
 - **Vite** — build tooling
 - **Tailwind CSS v4** — styling
-- **Tesseract.js v7** — client-side OCR
-- **Chrome Prompt API** — local Gemini Nano inference
+- **Chrome Prompt API** — local Gemini Nano multimodal inference
 - **Lucide React** — icons
 
 ## Project Structure
 
 ```
+dist/         — production build output (generated via `npm run build`)
 src/
-  App.tsx     — main app: OCR pipeline, AI integration, invoice form UI
+  App.tsx     — main app: Multimodal AI integration, invoice form UI
   main.tsx    — React entry point
   index.css   — Tailwind imports + fonts
-index.html    — entry HTML with HTTPS redirect
+index.html    — entry HTML
 vite.config.ts
 ```
-
-## License
-
-MIT
