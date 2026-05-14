@@ -3,7 +3,7 @@
 **Zero-cloud invoice parser** — drop a scanned invoice image, get structured data instantly.  
 OCR + Chrome's built-in Gemini Nano — everything runs locally in your browser.
 
-🌐 **Live:** [chrome-ai.secmy.app](https://chrome-ai.secmy.app)
+🌐 **Live:** [chrome.dev/web-ai-demos/local-ai-smart-invoice/](https://chrome.dev/web-ai-demos/local-ai-smart-invoice/)
 
 ---
 
